@@ -1,0 +1,972 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Suivi des heures de stage</title>
+<meta name="description" content="Suivi des 210 heures de stage de la formation de coach sportif.">
+<meta name="theme-color" content="#1F2A6B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Heures stage">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Instrument+Sans:wght@400;500;600&display=swap">
+<style>
+/* Mise en page : une colonne étroite. Le total en haut, le formulaire au milieu, le journal des cours, puis la sauvegarde. */
+:root{
+  --bg:#EEF0F6; --surface:#FFFFFF; --ink:#121734; --muted:#5A6080; --line:#D5D9E6; --track:#DFE2EC;
+  --accent:#1F2A6B; --accent-ink:#FFFFFF; --accent-soft:#E1E5F4;
+  --warn:#7A4A00; --warn-bg:#FBEBCB; --danger:#A32D2D;
+  --c1:#1F2A6B; --c2:#2E8C86; --c3:#B0562A; --c4:#A23E78;
+  --f-display:"Bricolage Grotesque",system-ui,sans-serif;
+  --f-body:"Instrument Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B0F24; --surface:#131938; --ink:#E8EAF5; --muted:#9CA2C2; --line:#262E55; --track:#1F2648;
+    --accent:#A9B8FF; --accent-ink:#0B0F24; --accent-soft:#1E2756;
+    --warn:#F0C16A; --warn-bg:#3A2D10; --danger:#F08A8A;
+    --c1:#A9B8FF; --c2:#6FD3CB; --c3:#F0A57A; --c4:#F09AC8;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B0F24; --surface:#131938; --ink:#E8EAF5; --muted:#9CA2C2; --line:#262E55; --track:#1F2648;
+  --accent:#A9B8FF; --accent-ink:#0B0F24; --accent-soft:#1E2756;
+  --warn:#F0C16A; --warn-bg:#3A2D10; --danger:#F08A8A;
+  --c1:#A9B8FF; --c2:#6FD3CB; --c3:#F0A57A; --c4:#F09AC8;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 15px/1.5 var(--f-body);
+  padding:calc(24px + env(safe-area-inset-top)) calc(16px + env(safe-area-inset-right)) calc(56px + env(safe-area-inset-bottom)) calc(16px + env(safe-area-inset-left))}
+main{max-width:720px;margin-inline:auto;display:flex;flex-direction:column;gap:20px}
+
+/* Fond photo : fixe derrière les encarts, assombri en bleu nuit pour garder le texte lisible */
+.bg{position:fixed;inset:0;z-index:-1;background:#0B0F24 url("assets/fond.jpg") no-repeat;background-size:cover;background-position:center calc(-1 * max(8vh, 14vw))}
+.bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(11,15,36,.15) 0%,rgba(11,15,36,.45) 30%,rgba(11,15,36,.88) 58%,#0B0F24 82%)}
+.hero-head{padding-top:clamp(190px,38vh,340px);color:#FFFFFF;text-shadow:0 1px 12px rgba(0,0,0,.45)}
+.hero-head .eyebrow{color:#D9B26A}
+@media (min-aspect-ratio: 3/4){
+  /* Écran large : photo à la hauteur de l'écran, centrée, bords fondus dans le bleu nuit */
+  .bg{background-size:auto 125vh;background-position:center -10vh}
+  .bg::before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,#0B0F24 calc(50% - 36vh),rgba(11,15,36,0) calc(50% - 26vh),rgba(11,15,36,0) calc(50% + 26vh),#0B0F24 calc(50% + 36vh))}
+  .hero-head{padding-top:clamp(190px,46vh,580px)}
+}
+.card{box-shadow:0 6px 24px rgba(5,8,22,.28)}
+.notice{box-shadow:0 6px 24px rgba(5,8,22,.28)}
+h1,h2,.big{font-family:var(--f-display);text-wrap:balance}
+h1{font-size:28px;line-height:1.1;margin:0;font-weight:700;letter-spacing:-.01em}
+h2{font-size:18px;margin:0;font-weight:600}
+.eyebrow{margin:0 0 6px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;min-width:0}
+.num{font-variant-numeric:tabular-nums}
+
+/* Résumé */
+.hero{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.big{font-size:56px;line-height:1;font-weight:700;letter-spacing:-.02em}
+.of{color:var(--muted);font-size:18px}
+.pct{margin-left:auto;font-weight:600;color:var(--accent);font-size:18px}
+.bar{position:relative;height:14px;border-radius:7px;background:var(--track);margin-top:18px;display:flex;overflow:visible}
+.seg{height:100%;min-width:0}
+.seg:first-child{border-radius:7px 0 0 7px}
+.seg:last-child{border-radius:0 7px 7px 0}
+.seg:only-child{border-radius:7px}
+.tick{position:absolute;top:-5px;bottom:-5px;width:2px;background:var(--ink);border-radius:1px}
+.legend{margin:12px 0 0;font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
+.legend i{display:inline-block;width:2px;height:14px;background:var(--ink)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin:20px 0 0;padding-top:18px;border-top:1px solid var(--line)}
+.stat dt{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.stat dd{margin:2px 0 0;font:600 22px/1.2 var(--f-display)}
+.stat small{display:block;font:400 12.5px/1.4 var(--f-body);color:var(--muted);margin-top:2px}
+.structs{list-style:none;margin:18px 0 0;padding:0;display:flex;flex-direction:column;gap:10px}
+.structs li{display:grid;grid-template-columns:12px 1fr auto;gap:10px;align-items:center}
+.dot{width:12px;height:12px;border-radius:3px;background:var(--tc,var(--accent))}
+.structs .name{min-width:0;overflow-wrap:anywhere}
+.structs .val{font-weight:600}
+
+/* Formulaire */
+form{display:flex;flex-direction:column;gap:14px;margin-top:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.field{display:flex;flex-direction:column;gap:6px;min-width:0}
+label,.lbl{font-size:13px;font-weight:600;color:var(--muted)}
+input,select,button{font:inherit}
+textarea{min-height:88px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding:10px 12px;font:inherit;font-size:16px;line-height:1.45;width:100%;min-width:0;resize:vertical}
+textarea:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+input,select{height:46px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);padding-inline:12px;font-size:16px;width:100%;min-width:0}
+input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.btn{height:46px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding-inline:16px;font-weight:600;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.55;cursor:default}
+.inline{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.inline input{flex:1 1 180px;width:auto}
+.link{background:none;border:0;padding:4px 0;color:var(--accent);font-weight:600;cursor:pointer;text-align:left;width:fit-content}
+.preview{margin:0;font-size:14px;color:var(--muted)}
+.preview strong{color:var(--ink)}
+.status{min-height:0;font-size:14px;border-radius:8px;padding:0}
+.status:not(:empty){padding:10px 12px}
+.status.warn{background:var(--warn-bg);color:var(--warn)}
+.status.err{background:var(--warn-bg);color:var(--danger)}
+.status.ok{background:var(--accent-soft);color:var(--ink)}
+
+/* Évaluation du coach */
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.rate{border:1px solid var(--line);border-radius:10px}
+.rate > summary{padding:12px 14px;font-weight:600}
+.rate-title{flex:1;min-width:0}
+.rate-title small{font-weight:400;color:var(--muted)}
+.rate-body{padding:0 14px 14px;display:flex;flex-direction:column;gap:16px}
+.crit{display:flex;flex-direction:column;gap:6px}
+.crit strong{font-size:14px}
+.crit small{display:block;font-size:12.5px;color:var(--muted);line-height:1.35}
+.scale{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.scale button{height:40px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-weight:600;cursor:pointer;font-variant-numeric:tabular-nums}
+.scale button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.score{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent);white-space:nowrap}
+.score.none{color:var(--muted);font-weight:500;font-size:13px}
+.score.todo{color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 10px;font-size:13px}
+.crits{display:flex;flex-direction:column;gap:16px}
+.editor{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:4px 0 12px;width:100%}
+.edit-actions{display:flex;gap:8px;flex-wrap:wrap}
+.edit-actions .btn{flex:1 1 140px}
+
+/* Journal */
+.head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{height:36px;border-radius:18px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding-inline:14px;font-size:14px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.months{display:flex;flex-direction:column;gap:12px;margin-top:16px}
+.month{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent}
+summary::-webkit-details-marker{display:none}
+summary:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
+.chev{flex:none;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg) translate(-2px,-2px)}
+details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
+.mhead{padding:14px 16px;background:var(--accent-soft)}
+.mname{font:600 17px/1.2 var(--f-display);flex:1;min-width:0}
+.mname::first-letter,.dname::first-letter{text-transform:uppercase}
+.mmeta{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+.mmeta strong{color:var(--ink)}
+.days{display:flex;flex-direction:column}
+.day{border-top:1px solid var(--line)}
+.day:first-child{border-top:0}
+.dhead{padding:12px 16px;min-height:56px}
+.dtext{flex:1;min-width:0}
+.dname{font-weight:600}
+.dsub{font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dtot{font-weight:600;font-variant-numeric:tabular-nums}
+.day[open] > .dhead{background:var(--bg)}
+.day .rows{padding:0 16px;background:var(--bg)}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:flex;gap:6px 14px;align-items:center;flex-wrap:wrap;padding:12px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border-bottom:0}
+.time{font-variant-numeric:tabular-nums;font-weight:600;min-width:104px}
+.who{flex:1 1 180px;min-width:0;overflow-wrap:anywhere}
+.who .tagline{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin-top:2px}
+.dur{font-variant-numeric:tabular-nums;font-weight:600;margin-left:auto}
+.acts{display:flex;gap:16px;flex-wrap:wrap}
+.course{border-bottom:1px solid var(--line)}
+.course:last-child{border-bottom:0}
+.crow{padding:12px 0;gap:10px;min-height:48px}
+.ctext{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.crow .time{min-width:0;font-size:14px;white-space:nowrap}
+.cwho{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:var(--muted)}
+.cwho strong{color:var(--ink);font-weight:600}
+.crow .score.todo{font-size:12px;padding:1px 8px}
+.cinner{padding:0 0 14px;display:flex;flex-direction:column;gap:8px}
+.cinner .comment{margin:0}
+.cmeta{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.cinner .acts .act,.cinner .acts .del{padding-left:0}
+.act{background:none;border:0;color:var(--accent);cursor:pointer;padding:8px 4px;font-size:13px;font-weight:600;text-decoration:underline}
+.del{background:none;border:0;color:var(--muted);cursor:pointer;padding:8px 4px;font-size:13px;text-decoration:underline}
+.del.armed{color:var(--danger);font-weight:600}
+.empty{margin:18px 0 0;color:var(--muted)}
+.comment{margin:6px 0 0;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.comment span{color:var(--muted)}
+
+/* Statistiques */
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:10px;padding:12px}
+.kpi dt{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.kpi dd{margin:2px 0 0;font:600 22px/1.2 var(--f-display);font-variant-numeric:tabular-nums}
+.chart h3{margin:0 0 10px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.chart{padding-top:14px;border-top:1px solid var(--line)}
+.vbars{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;align-items:end;height:150px}
+.vcol{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;min-width:0}
+.vcol .val{font-size:12px;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.vcol .bar{width:100%;max-width:34px;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.vcol .bar.zero{background:var(--track)}
+.vlabels{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;margin-top:6px;font-size:12px;color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:6px}
+.hbars{display:flex;flex-direction:column;gap:10px;font-size:13.5px}
+.hrow{display:flex;flex-direction:column;gap:4px}
+.htop{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.hbars .lab{min-width:0;overflow-wrap:anywhere}
+.hbars .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chart .more{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.hbars .v small{font-weight:400;color:var(--muted)}
+.hbar{height:10px;border-radius:0 4px 4px 0;background:var(--track);overflow:hidden}
+.hbar i{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+
+/* Mes coachs */
+.fold > summary{min-height:28px}
+.ftext{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.fsub{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.fbody{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.fbody .chips:empty{display:none}
+.fbody .chips,.fbody .months,.fbody .empty{margin-top:0}
+.fbody #export{align-self:flex-start}
+.coachs{display:flex;flex-direction:column}
+.coach{border-top:1px solid var(--line)}
+.coach:first-child{border-top:0}
+.chead{padding:12px 0;min-height:56px}
+.cbody{padding:0 0 16px;display:flex;flex-direction:column;gap:14px}
+.cbars{display:grid;grid-template-columns:minmax(0,1fr) minmax(60px,110px) 32px;gap:8px 10px;align-items:center;font-size:13.5px}
+.cbars .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.cbars .na{color:var(--muted);font-weight:400}
+.cbar{height:8px;border-radius:4px;background:var(--track);overflow:hidden}
+.cbar i{display:block;height:100%;background:var(--accent);border-radius:4px}
+.cnotes{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:12px}
+.cnotes li{font-size:14px;overflow-wrap:anywhere;display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--line)}
+.cnotes .cl{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.cnotes .ctext{white-space:pre-wrap}
+.cnotes .act{align-self:flex-start;padding-left:0}
+.ctitle{margin:0;font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.cnotes .when{display:block;font-size:12.5px;color:var(--muted);white-space:normal}
+.cnotes .when::first-letter{text-transform:uppercase}
+.notice{background:var(--warn-bg);color:var(--warn);border-radius:10px;padding:12px 14px;margin:0}
+
+/* Sauvegarde */
+.backup p{margin:14px 0 0;color:var(--muted);font-size:14px}
+.backup .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.backup .actions .btn{flex:1 1 180px}
+.backup .status{margin-top:12px}
+@media (prefers-reduced-motion: no-preference){.seg{transition:width .3s ease}}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"></div>
+<main>
+  <header class="hero-head">
+    <p class="eyebrow">Formation de coach sportif · 8 octobre 2026 au 8 avril 2027</p>
+    <h1>Suivi des heures de stage</h1>
+  </header>
+
+  <p id="notice" class="notice" hidden>Ce navigateur bloque l'enregistrement local : tes cours ne seront pas gardés. Désactive la navigation privée ou ouvre l'appli dans un autre navigateur.</p>
+  <p id="remind" class="notice" hidden></p>
+
+  <section class="card" aria-labelledby="t-total">
+    <h2 id="t-total" class="eyebrow" style="font-family:var(--f-body)">Heures effectuées</h2>
+    <div class="hero">
+      <span class="big num" id="total">—</span>
+      <span class="of num">sur 210 h</span>
+      <span class="pct num" id="pct"></span>
+    </div>
+    <div class="bar" id="bar" role="img" aria-label="Progression sur 210 heures"></div>
+    <p class="legend" id="legend"></p>
+    <dl class="stats">
+      <div class="stat"><dt>Reste à faire</dt><dd class="num" id="remain">—</dd></div>
+      <div class="stat"><dt>Jours restants</dt><dd class="num" id="days">—</dd><small id="daysnote"></small></div>
+      <div class="stat"><dt>Rythme pour finir</dt><dd class="num" id="pace">—</dd><small id="pacenote"></small></div>
+    </dl>
+    <ul class="structs" id="structs"></ul>
+  </section>
+
+  <details class="card fold" id="add-box">
+    <summary><span class="ftext"><h2 id="t-add">Ajouter un cours</h2><span class="fsub">Jour, horaires, coach, ressenti et note</span></span><span class="chev" aria-hidden="true"></span></summary>
+    <form id="form" novalidate>
+      <div class="grid">
+        <div class="field"><label for="f-date">Jour</label><input id="f-date" type="date" required></div>
+        <div class="field"><label for="f-start">Début</label><input id="f-start" type="time" required></div>
+        <div class="field"><label for="f-end">Fin</label><input id="f-end" type="time" required></div>
+      </div>
+      <div class="grid">
+        <div class="field"><label for="f-coach">Coach suivi</label><input id="f-coach" list="dl-coach" autocomplete="off" required><datalist id="dl-coach"></datalist></div>
+        <div class="field"><label for="f-disc">Discipline</label><input id="f-disc" list="dl-disc" autocomplete="off" placeholder="CrossFit, Hyrox…"><datalist id="dl-disc"></datalist></div>
+      </div>
+      <div class="field">
+        <label for="f-struct">Structure de stage</label>
+        <select id="f-struct"></select>
+        <button type="button" class="link" id="newstruct-open">Ajouter une structure</button>
+        <div class="inline" id="newstruct" hidden>
+          <input id="f-newstruct" type="text" placeholder="Nom de la structure" autocomplete="off" aria-label="Nom de la nouvelle structure">
+          <button type="button" class="btn" id="newstruct-save">Enregistrer</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-comment">Ressenti pendant l'observation</label>
+        <textarea id="f-comment" rows="3" placeholder="Ce que tu as remarqué, ce qui t'a plu, ce que tu retiens pour ta pratique…"></textarea>
+      </div>
+      <details class="rate" id="rate-box">
+        <summary><span class="rate-title">Évaluer le coach <small>(facultatif)</small></span><span id="rate-avg"></span><span class="chev" aria-hidden="true"></span></summary>
+        <div class="rate-body">
+          <p class="hint">Note chaque critère de 1 (pas du tout) à 5 (tout à fait), d'après ce que tu as vu pendant le cours. Touche de nouveau une note pour l'enlever. Tu peux laisser un critère vide.</p>
+          <div id="criteria" class="rate-body" style="padding:0"></div>
+        </div>
+      </details>
+      <p class="preview num" id="preview">Durée : saisis le début et la fin.</p>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <button class="btn primary" id="submit" type="submit">Ajouter ce cours</button>
+    </form>
+  </details>
+
+  <details class="card fold" id="log-box">
+    <summary><span class="ftext"><h2 id="t-log">Journal des cours</h2><span class="fsub" id="log-sum"></span></span><span class="chev" aria-hidden="true"></span></summary>
+    <div class="fbody">
+      <button type="button" class="btn" id="export" hidden>Exporter en tableau</button>
+      <div class="chips" id="chips"></div>
+      <div id="log"><p class="empty">Chargement de tes cours…</p></div>
+    </div>
+  </details>
+
+  <details class="card fold" id="coachs-box">
+    <summary><span class="ftext"><h2 id="t-coachs">Mes coachs</h2><span class="fsub" id="coachs-sum"></span></span><span class="chev" aria-hidden="true"></span></summary>
+    <div class="fbody">
+      <p class="hint">Classés par note moyenne. Touche un coach pour voir ses notes par critère et noter ses cours.</p>
+      <input id="coach-search" type="search" placeholder="Rechercher un coach" autocomplete="off" aria-label="Rechercher un coach" hidden>
+      <div id="coachs"></div>
+    </div>
+  </details>
+
+  <details class="card fold" id="stats-box">
+    <summary><span class="ftext"><h2 id="t-stats">Statistiques</h2><span class="fsub" id="stats-sum"></span></span><span class="chev" aria-hidden="true"></span></summary>
+    <div class="fbody" id="stats"></div>
+  </details>
+
+  <details class="card fold backup" id="backup-box">
+    <summary><span class="ftext"><h2 id="t-backup">Sauvegarde</h2><span class="fsub num" id="lastbackup"></span></span><span class="chev" aria-hidden="true"></span></summary>
+    <p>Tes cours sont enregistrés uniquement sur cet appareil. Fais une sauvegarde régulièrement (envoie-la-toi par mail ou range-la dans tes fichiers) : elle permet de tout retrouver sur un nouveau téléphone ou après avoir effacé les données du navigateur.</p>
+    <div class="actions">
+      <button type="button" class="btn primary" id="backup-save">Créer une sauvegarde</button>
+      <button type="button" class="btn" id="backup-load">Restaurer une sauvegarde</button>
+      <input type="file" id="backup-file" accept=".json,application/json" hidden>
+    </div>
+    <div class="status" id="bstatus" role="status" aria-live="polite"></div>
+  </details>
+</main>
+
+<script>
+(function(){
+  var GOAL = 210*60, START = "2026-10-08", END = "2027-04-08";
+  var DEFAULT_STRUCTS = ["R2 Training Factory"];
+  var DEFAULT_DISC = ["CrossFit","Hyrox","Haltérophilie","PT (Personal Training)","Calisthenics","Handstand","Hybrid Training","FIT","ATHX","Aerobic Capacity","Powerlifting","Spe Run","Mobility","Hyrox focus Force","Core Training"];
+  var KEY = "suivi-stage:v1", REMIND_DAYS = 14;
+  var CRITERIA = [
+    {k:"consignes", label:"Consignes", hint:"Explique clairement chaque exercice et le démontre."},
+    {k:"corrections", label:"Corrections", hint:"Corrige la technique des pratiquants un par un pendant le cours."},
+    {k:"adaptation", label:"Adaptation", hint:"Propose des options selon le niveau, les douleurs ou les blessures."},
+    {k:"securite", label:"Sécurité", hint:"Échauffement complet, placement et matériel vérifiés."},
+    {k:"temps", label:"Gestion du temps", hint:"Commence et finit à l'heure, respecte le déroulé annoncé."},
+    {k:"partage", label:"Partage avec toi", hint:"Répond à tes questions et t'explique ses choix de séance."}
+  ];
+  var rating = {}, openCoachs = {}, openCourses = {}, editId = null, editWhere = null, editDraft = null;
+  var entries = [], structs = DEFAULT_STRUCTS.slice(), lastBackup = null, loaded = false, filter = "all", armedDelete = null, armedSubmit = null;
+  var storageOk = true, openMonths = {}, openDays = {}, monthsInit = false;
+
+  function $(id){ return document.getElementById(id); }
+  function el(tag, props){
+    var e = document.createElement(tag);
+    if (props) for (var k in props){
+      if (k === "class") e.className = props[k];
+      else if (k === "text") e.textContent = props[k];
+      else if (k.indexOf("on") === 0) e.addEventListener(k.slice(2), props[k]);
+      else if (props[k] !== null && props[k] !== false) e.setAttribute(k, props[k]);
+    }
+    for (var i = 2; i < arguments.length; i++){
+      var c = arguments[i];
+      if (c == null || c === false) continue;
+      e.append(c.nodeType ? c : document.createTextNode(c));
+    }
+    return e;
+  }
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function ymd(d){ return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate()); }
+  function parseDay(s){ var p = s.split("-"); return new Date(+p[0], +p[1]-1, +p[2]); }
+  function daysBetween(a, b){ return Math.round((parseDay(b) - parseDay(a)) / 864e5); }
+  function toMin(t){ var p = t.split(":"); return +p[0]*60 + +p[1]; }
+  function hm(t){ return t.replace(":", "h"); }
+  function fmtH(m){ var h = Math.floor(m/60), r = Math.round(m%60); return r ? h+" h "+pad(r) : h+" h"; }
+  function dayLabel(s){ return parseDay(s).toLocaleDateString("fr-FR", {weekday:"long", day:"numeric", month:"long"}); }
+  function uniq(a){ var o = []; a.forEach(function(x){ if (x && o.indexOf(x) < 0) o.push(x); }); return o; }
+  function allStructs(){ return uniq(structs.concat(entries.map(function(e){ return e.structure; }))); }
+  function colorOf(name){ var i = allStructs().indexOf(name); return "var(--c"+((i < 0 ? 0 : i) % 4 + 1)+")"; }
+  function newId(){ return (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2); }
+  function sorted(list){
+    return list.slice().sort(function(a, b){
+      return a.date === b.date ? (a.start < b.start ? -1 : 1) : (a.date < b.date ? 1 : -1);
+    });
+  }
+  function fmtScore(x){ return x.toFixed(1).replace(".", ","); }
+  function avgOf(r){
+    var v = CRITERIA.map(function(c){ return r && r[c.k]; }).filter(function(n){ return typeof n === "number"; });
+    return v.length ? v.reduce(function(a, b){ return a + b; }, 0) / v.length : null;
+  }
+  function scoreEl(avg){ return avg == null ? el("span", {class:"score none", text:"Pas noté"}) : el("span", {class:"score", "aria-label":"Note moyenne " + fmtScore(avg) + " sur 5"}, "★ " + fmtScore(avg)); }
+  function isEntry(o){ return o && typeof o.date === "string" && typeof o.start === "string" && typeof o.end === "string" && typeof o.minutes === "number"; }
+
+  /* Enregistrement local */
+  function load(){
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw){
+        var d = JSON.parse(raw);
+        entries = (Array.isArray(d.entries) ? d.entries : []).filter(isEntry);
+        if (Array.isArray(d.structs) && d.structs.length) structs = d.structs;
+        lastBackup = d.lastBackup || null;
+      }
+    } catch (e){ storageOk = false; }
+  }
+  function save(){
+    try {
+      localStorage.setItem(KEY, JSON.stringify({version:1, entries:entries, structs:structs, lastBackup:lastBackup}));
+      return true;
+    } catch (e){ storageOk = false; $("notice").hidden = false; return false; }
+  }
+
+  /* Résumé */
+  function renderSummary(){
+    var today = ymd(new Date());
+    var total = entries.reduce(function(s, e){ return s + (e.minutes || 0); }, 0);
+    var remaining = Math.max(0, GOAL - total);
+    $("total").textContent = loaded ? fmtH(total) : "—";
+    $("pct").textContent = loaded ? Math.min(100, Math.round(total/GOAL*100)) + " %" : "";
+    $("remain").textContent = loaded ? fmtH(remaining) : "—";
+
+    var span = daysBetween(START, END);
+    var elapsed = Math.min(span, Math.max(0, daysBetween(START, today)));
+    var daysLeft = Math.max(0, daysBetween(today, END));
+    $("days").textContent = daysLeft;
+    $("daysnote").textContent = today > END ? "La période de stage est terminée." : "jusqu'au 8 avril 2027";
+    if (!loaded){ $("pace").textContent = "—"; $("pacenote").textContent = ""; }
+    else if (remaining === 0){ $("pace").textContent = "Terminé"; $("pacenote").textContent = "Les 210 heures sont atteintes."; }
+    else if (daysLeft === 0){ $("pace").textContent = "—"; $("pacenote").textContent = "Il n'y a plus de jour dans la période."; }
+    else {
+      var weeks = Math.max(daysLeft/7, 1/7);
+      $("pace").textContent = fmtH(Math.ceil(remaining/weeks));
+      $("pacenote").textContent = "par semaine, en moyenne";
+    }
+
+    var bar = $("bar"); bar.textContent = "";
+    var byStruct = {};
+    entries.forEach(function(e){ byStruct[e.structure] = (byStruct[e.structure] || 0) + (e.minutes || 0); });
+    var names = allStructs().filter(function(n){ return byStruct[n]; });
+    var used = 0;
+    names.forEach(function(n){
+      var w = Math.min(byStruct[n]/GOAL*100, 100 - used); used += w;
+      var s = el("div", {class:"seg", title:n+" : "+fmtH(byStruct[n])});
+      s.style.width = w + "%"; s.style.background = colorOf(n);
+      bar.append(s);
+    });
+    var expected = Math.round(GOAL * elapsed / span);
+    var tick = el("div", {class:"tick"}); tick.style.left = "calc(" + (expected/GOAL*100) + "% - 1px)";
+    bar.append(tick);
+    $("legend").textContent = "";
+    $("legend").append(el("i"), "Repère à rythme régulier : " + fmtH(expected) + " à ce jour");
+
+    var ul = $("structs"); ul.textContent = "";
+    allStructs().forEach(function(n){
+      var li = el("li", null, el("span", {class:"dot"}), el("span", {class:"name", text:n}), el("span", {class:"val num", text:fmtH(byStruct[n] || 0)}));
+      li.querySelector(".dot").style.setProperty("--tc", colorOf(n));
+      ul.append(li);
+    });
+  }
+
+  /* Formulaire */
+  function renderOptions(){
+    var sel = $("f-struct"), cur = sel.value;
+    sel.textContent = "";
+    allStructs().forEach(function(n){ sel.append(el("option", {value:n, text:n})); });
+    if (cur && allStructs().indexOf(cur) >= 0) sel.value = cur;
+    $("dl-coach").textContent = "";
+    uniq(entries.map(function(e){ return e.coach; })).forEach(function(c){ $("dl-coach").append(el("option", {value:c})); });
+    $("dl-disc").textContent = "";
+    uniq(DEFAULT_DISC.concat(entries.map(function(e){ return e.discipline; }))).forEach(function(c){ $("dl-disc").append(el("option", {value:c})); });
+  }
+  function buildScales(obj, onChange){
+    var wrap = el("div", {class:"crits"});
+    CRITERIA.forEach(function(c){
+      var scale = el("div", {class:"scale", role:"group", "aria-label":c.label}), btns = [];
+      for (var n = 1; n <= 5; n++) (function(n){
+        var b = el("button", {type:"button", "aria-pressed":String(obj[c.k] === n), "aria-label":c.label + " : " + n + " sur 5", text:String(n),
+          onclick:function(){
+            if (obj[c.k] === n) delete obj[c.k]; else obj[c.k] = n;
+            btns.forEach(function(x, i){ x.setAttribute("aria-pressed", String(obj[c.k] === i + 1)); });
+            if (onChange) onChange();
+          }});
+        btns.push(b); scale.append(b);
+      })(n);
+      wrap.append(el("div", {class:"crit"}, el("div", null, el("strong", {text:c.label}), el("small", {text:c.hint})), scale));
+    });
+    return wrap;
+  }
+  function updateRateAvg(){ var a = avgOf(rating), ra = $("rate-avg"); ra.textContent = ""; if (a != null) ra.append(scoreEl(a)); }
+  function renderCriteria(){
+    var box = $("criteria"); box.textContent = "";
+    box.append(buildScales(rating, updateRateAvg));
+    updateRateAvg();
+  }
+
+  /* Noter et commenter un cours déjà enregistré */
+  function startEdit(e, where){
+    editId = e.id; editWhere = where;
+    editDraft = {comment: e.comment || "", rating: Object.assign({}, e.rating || {})};
+    renderAll();
+    var ta = $("edit-comment"); if (ta) ta.scrollIntoView({block:"center", behavior:"smooth"});
+  }
+  function editorFor(e){
+    var d = editDraft;
+    var ta = el("textarea", {id:"edit-comment", rows:"3", placeholder:"Ce que tu as remarqué, ce qui t'a plu, ce que tu retiens pour ta pratique…"});
+    ta.value = d.comment;
+    ta.addEventListener("input", function(){ d.comment = ta.value; });
+    return el("div", {class:"editor"},
+      el("label", {for:"edit-comment", text:"Ressenti pendant l'observation"}), ta,
+      el("p", {class:"hint", text:"Note chaque critère de 1 (pas du tout) à 5 (tout à fait). Touche de nouveau une note pour l'enlever."}),
+      buildScales(d.rating),
+      el("div", {class:"edit-actions"},
+        el("button", {type:"button", class:"btn primary", text:"Enregistrer", onclick:function(){ saveEdit(e.id); }}),
+        el("button", {type:"button", class:"btn", text:"Annuler", onclick:function(){ editId = null; renderAll(); }})));
+  }
+  function saveEdit(id){
+    var e = entries.filter(function(x){ return x.id === id; })[0];
+    if (!e) return;
+    var prev = {comment:e.comment, rating:e.rating};
+    var c = editDraft.comment.trim();
+    if (c) e.comment = c; else delete e.comment;
+    if (avgOf(editDraft.rating) != null) e.rating = Object.assign({}, editDraft.rating); else delete e.rating;
+    if (!save()){
+      if (prev.comment) e.comment = prev.comment; else delete e.comment;
+      if (prev.rating) e.rating = prev.rating; else delete e.rating;
+      setStatus("err", "La modification n'a pas pu être enregistrée sur cet appareil.");
+      return;
+    }
+    editId = null; renderAll();
+  }
+  function editBtn(e, where){
+    var done = e.comment || avgOf(e.rating) != null;
+    return el("button", {type:"button", class:"act", text: done ? "Modifier" : "Noter et commenter", onclick:function(){ startEdit(e, where); }});
+  }
+  function setStatus(kind, msg, id){ var s = $(id || "status"); s.className = "status" + (kind ? " " + kind : ""); s.textContent = msg || ""; }
+  function updatePreview(){
+    var s = $("f-start").value, e = $("f-end").value, p = $("preview");
+    p.textContent = "";
+    if (!s || !e){ p.textContent = "Durée : saisis le début et la fin."; return; }
+    var m = toMin(e) - toMin(s);
+    if (m <= 0){ p.textContent = "L'heure de fin doit être après l'heure de début."; return; }
+    p.append("Durée : ", el("strong", {text:fmtH(m)}));
+  }
+
+  function onSubmit(ev){
+    ev.preventDefault();
+    var v = {
+      date: $("f-date").value, start: $("f-start").value, end: $("f-end").value,
+      coach: $("f-coach").value.trim(), discipline: $("f-disc").value.trim(), structure: $("f-struct").value
+    };
+    if (!v.date || !v.start || !v.end || !v.coach || !v.structure){ setStatus("err", "Complète le jour, le début, la fin, le coach et la structure."); return; }
+    var minutes = toMin(v.end) - toMin(v.start);
+    if (minutes <= 0){ setStatus("err", "L'heure de fin doit être après l'heure de début."); return; }
+
+    var warns = [];
+    if (v.date < START || v.date > END) warns.push("Ce jour est hors de la période de stage (8 octobre 2026 au 8 avril 2027).");
+    entries.forEach(function(e){
+      if (e.date === v.date && toMin(e.start) < toMin(v.end) && toMin(v.start) < toMin(e.end))
+        warns.push("Ce créneau chevauche un cours déjà saisi ce jour-là : " + hm(e.start) + " à " + hm(e.end) + " avec " + e.coach + ".");
+    });
+    var key = JSON.stringify(v);
+    if (warns.length && armedSubmit !== key){
+      armedSubmit = key;
+      setStatus("warn", warns.join(" ") + " Appuie de nouveau sur le bouton pour l'ajouter quand même.");
+      $("submit").textContent = "Ajouter quand même";
+      return;
+    }
+    v.id = newId(); v.minutes = minutes; v.createdAt = new Date().toISOString();
+    var comment = $("f-comment").value.trim();
+    if (comment) v.comment = comment;
+    if (avgOf(rating) != null) v.rating = Object.assign({}, rating);
+    entries.push(v);
+    if (!save()){
+      entries.pop();
+      setStatus("err", "Le cours n'a pas pu être enregistré sur cet appareil.");
+      return;
+    }
+    armedSubmit = null; $("submit").textContent = "Ajouter ce cours";
+    openMonths[v.date.slice(0, 7)] = true; openDays[v.date] = true;
+    setStatus("ok", "Ajouté : " + dayLabel(v.date) + ", " + hm(v.start) + " à " + hm(v.end) + " avec " + v.coach + " (" + fmtH(minutes) + ").");
+    $("f-start").value = v.end; $("f-end").value = ""; $("f-coach").value = ""; $("f-disc").value = "";
+    $("f-comment").value = ""; rating = {}; renderCriteria(); $("rate-box").open = false;
+    updatePreview(); renderAll(); $("f-end").focus();
+  }
+
+  function addStructure(){
+    var name = $("f-newstruct").value.trim();
+    if (!name) return;
+    var prev = structs, list = allStructs();
+    if (list.indexOf(name) < 0) list.push(name);
+    structs = list;
+    if (!save()){ structs = prev; setStatus("err", "La structure n'a pas pu être enregistrée."); return; }
+    renderOptions(); $("f-struct").value = name;
+    $("f-newstruct").value = ""; $("newstruct").hidden = true; $("newstruct-open").hidden = false;
+    renderSummary(); renderLog();
+  }
+
+  /* Journal */
+  function renderLog(){
+    var chips = $("chips"); chips.textContent = "";
+    var names = allStructs();
+    if (names.length > 1){
+      [["all","Toutes"]].concat(names.map(function(n){ return [n, n]; })).forEach(function(p){
+        chips.append(el("button", {type:"button", class:"chip", "aria-pressed": String(filter === p[0]), text:p[1], onclick:function(){ filter = p[0]; renderLog(); }}));
+      });
+    } else filter = "all";
+    $("export").hidden = !entries.length;
+
+    var last = sorted(entries)[0];
+    $("log-sum").textContent = entries.length
+      ? entries.length + " cours · dernier le " + parseDay(last.date).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})
+      : "Aucun cours enregistré";
+    var box = $("log"); box.textContent = "";
+    if (!loaded){ box.append(el("p", {class:"empty", text:"Chargement de tes cours…"})); return; }
+    var list = sorted(entries).filter(function(e){ return filter === "all" || e.structure === filter; });
+    if (!list.length){
+      box.append(el("p", {class:"empty", text: entries.length ? "Aucun cours pour cette structure." : "Aucun cours enregistré. Ajoute le premier avec le formulaire ci-dessus : jour, heure de début, heure de fin, coach et structure."}));
+      return;
+    }
+    // Mois (le plus récent ouvert par défaut) > jours repliés > cours.
+    var months = [], m = null, d = null;
+    list.forEach(function(e){
+      var mk = e.date.slice(0, 7);
+      if (!m || m.key !== mk){ m = {key:mk, days:[], minutes:0, count:0}; months.push(m); d = null; }
+      if (!d || d.date !== e.date){ d = {date:e.date, items:[], minutes:0}; m.days.push(d); }
+      d.items.push(e); d.minutes += e.minutes; m.minutes += e.minutes; m.count++;
+    });
+    if (!monthsInit){ openMonths[months[0].key] = true; monthsInit = true; }
+    var wrap = el("div", {class:"months"});
+    months.forEach(function(mo){
+      var mdet = el("details", {class:"month"});
+      mdet.open = !!openMonths[mo.key];
+      mdet.addEventListener("toggle", function(){ openMonths[mo.key] = mdet.open; });
+      mdet.append(el("summary", {class:"mhead"},
+        el("span", {class:"mname", text: parseDay(mo.key + "-01").toLocaleDateString("fr-FR", {month:"long", year:"numeric"})}),
+        el("span", {class:"mmeta"}, el("strong", {text:fmtH(mo.minutes)}), " · " + mo.count + " cours"),
+        el("span", {class:"chev", "aria-hidden":"true"})));
+      var days = el("div", {class:"days"});
+      mo.days.forEach(function(g){
+        var one = g.items.length === 1, f = g.items[0];
+        var sub = one
+          ? hm(f.start) + " – " + hm(f.end) + " · " + f.coach + (f.discipline ? " · " + f.discipline : "")
+          : g.items.length + " cours · " + uniq(g.items.map(function(e){ return e.coach; })).join(", ");
+        var ddet = el("details", {class:"day"});
+        ddet.open = !!openDays[g.date];
+        ddet.addEventListener("toggle", function(){ openDays[g.date] = ddet.open; });
+        ddet.append(el("summary", {class:"dhead"},
+          el("span", {class:"dtext"}, el("div", {class:"dname", text:dayLabel(g.date)}), el("div", {class:"dsub", text:sub})),
+          el("span", {class:"dtot", text:fmtH(g.minutes)}),
+          el("span", {class:"chev", "aria-hidden":"true"})));
+        var ul = el("ul", {class:"rows"});
+        g.items.forEach(function(e){
+          var a = avgOf(e.rating), editing = editId === e.id && editWhere === "log";
+          var tag = el("span", {class:"cmeta"}, el("span", {class:"dot"}), e.structure + " · " + fmtH(e.minutes));
+          tag.querySelector(".dot").style.setProperty("--tc", colorOf(e.structure));
+          var armed = armedDelete === e.id;
+          var det = el("details", {class:"cdet"});
+          det.open = editing || !!openCourses[e.id];
+          det.addEventListener("toggle", function(){ openCourses[e.id] = det.open; });
+          det.append(el("summary", {class:"crow"},
+            el("span", {class:"ctext"},
+              el("span", {class:"time", text: hm(e.start) + " – " + hm(e.end)}),
+              el("span", {class:"cwho"}, el("strong", {text:e.coach}), e.discipline ? " · " + e.discipline : "")),
+            a == null ? el("span", {class:"score todo", text:"À noter"}) : scoreEl(a),
+            el("span", {class:"chev", "aria-hidden":"true"})));
+          det.append(el("div", {class:"cinner"},
+            e.comment ? el("p", {class:"comment"}, el("span", {text:"Ressenti : "}), e.comment) : el("p", {class:"hint", text:"Pas encore de ressenti pour ce cours."}),
+            tag,
+            editing ? editorFor(e) : el("div", {class:"acts"}, editBtn(e, "log"),
+              el("button", {type:"button", class:"del" + (armed ? " armed" : ""), text: armed ? "Confirmer la suppression" : "Supprimer",
+                onclick:function(){ armed ? removeEntry(e.id) : (armedDelete = e.id, renderLog(), setTimeout(function(){ if (armedDelete === e.id){ armedDelete = null; renderLog(); } }, 5000)); }}))));
+          ul.append(el("li", {class:"course"}, det));
+        });
+        ddet.append(ul);
+        days.append(ddet);
+      });
+      mdet.append(days);
+      wrap.append(mdet);
+    });
+    box.append(wrap);
+  }
+  function removeEntry(id){
+    armedDelete = null;
+    var prev = entries;
+    entries = entries.filter(function(e){ return e.id !== id; });
+    if (!save()){ entries = prev; setStatus("err", "Le cours n'a pas pu être supprimé."); }
+    renderAll();
+  }
+
+  /* Mes coachs */
+  function renderCoachs(){
+    var box = $("coachs"); box.textContent = "";
+    if (!entries.length){
+      $("coachs-sum").textContent = "Aucun coach pour l'instant";
+      $("coach-search").hidden = true;
+      box.append(el("p", {class:"empty", text:"Tes coachs apparaîtront ici dès ton premier cours enregistré."})); return;
+    }
+    var map = {}, list = [];
+    sorted(entries).forEach(function(e){
+      var key = e.coach.trim().toLowerCase();
+      var c = map[key];
+      if (!c){ c = map[key] = {key:key, name:e.coach.trim(), count:0, minutes:0, structs:[], sums:{}, ns:{}, all:0, alln:0, items:[]}; list.push(c); }
+      if (c.name[0] === c.name[0].toLowerCase() && e.coach.trim()[0] !== e.coach.trim()[0].toLowerCase()) c.name = e.coach.trim();
+      c.count++; c.minutes += e.minutes;
+      if (c.structs.indexOf(e.structure) < 0) c.structs.push(e.structure);
+      CRITERIA.forEach(function(k){
+        var n = e.rating && e.rating[k.k];
+        if (typeof n === "number"){ c.sums[k.k] = (c.sums[k.k] || 0) + n; c.ns[k.k] = (c.ns[k.k] || 0) + 1; c.all += n; c.alln++; }
+      });
+      c.items.push(e);
+    });
+    list.forEach(function(c){ c.avg = c.alln ? c.all / c.alln : null; c.name = c.name.charAt(0).toUpperCase() + c.name.slice(1); });
+    list.sort(function(a, b){
+      if ((a.avg == null) !== (b.avg == null)) return a.avg == null ? 1 : -1;
+      if (a.avg != null && b.avg !== a.avg) return b.avg - a.avg;
+      return b.count - a.count;
+    });
+    var todo = list.filter(function(c){ return c.avg == null; }).length;
+    $("coachs-sum").textContent = list.length + (list.length > 1 ? " coachs" : " coach") + (todo ? " · " + todo + " à noter" : "");
+    var search = $("coach-search");
+    search.hidden = list.length < 6;
+    var q = search.hidden ? "" : search.value.trim().toLowerCase();
+    if (q) list = list.filter(function(c){ return c.key.indexOf(q) >= 0; });
+    if (!list.length){ box.append(el("p", {class:"empty", text:"Aucun coach ne correspond à « " + search.value.trim() + " »."})); return; }
+    var wrap = el("div", {class:"coachs"});
+    list.forEach(function(c){
+      var det = el("details", {class:"coach"});
+      det.open = !!openCoachs[c.key];
+      det.addEventListener("toggle", function(){ openCoachs[c.key] = det.open; });
+      det.append(el("summary", {class:"chead"},
+        el("span", {class:"dtext"}, el("div", {class:"dname", text:c.name}), el("div", {class:"dsub", text:c.count + " cours · " + fmtH(c.minutes) + " · " + c.structs.join(", ")})),
+        c.avg == null ? el("span", {class:"score todo", text:"À noter"}) : scoreEl(c.avg),
+        el("span", {class:"chev", "aria-hidden":"true"})));
+      var body = el("div", {class:"cbody"});
+      if (c.alln){
+        var bars = el("div", {class:"cbars"});
+        CRITERIA.forEach(function(k){
+          var n = c.ns[k.k], a = n ? c.sums[k.k] / n : null, bar = el("div", {class:"cbar"}, el("i"));
+          bar.firstChild.style.width = (a ? a / 5 * 100 : 0) + "%";
+          bars.append(el("span", {text:k.label}), bar, el("span", {class:"v" + (a == null ? " na" : ""), text: a == null ? "–" : fmtScore(a)}));
+        });
+        body.append(bars);
+      } else body.append(el("p", {class:"hint", text:"Pas encore de note pour ce coach. Touche « Noter et commenter » sous un de ses cours."}));
+      var ul = el("ul", {class:"cnotes"});
+      c.items.forEach(function(e){
+        var a = avgOf(e.rating);
+        ul.append(el("li", null,
+          el("div", {class:"cl"},
+            el("span", {class:"when", text:dayLabel(e.date) + " · " + hm(e.start) + " – " + hm(e.end) + (e.discipline ? " · " + e.discipline : "")}),
+            a == null ? null : scoreEl(a)),
+          e.comment ? el("div", {class:"ctext", text:e.comment}) : null,
+          editId === e.id && editWhere === "coach" ? editorFor(e) : editBtn(e, "coach")));
+      });
+      body.append(el("p", {class:"ctitle", text:"Cours suivis"}), ul);
+      det.append(body);
+      wrap.append(det);
+    });
+    box.append(wrap);
+  }
+
+  /* Statistiques */
+  function isoWeek(s){
+    var d = parseDay(s); d.setDate(d.getDate() + 3 - (d.getDay() + 6) % 7);
+    var w1 = new Date(d.getFullYear(), 0, 4);
+    return d.getFullYear() + "-S" + pad(1 + Math.round(((d - w1) / 864e5 - 3 + (w1.getDay() + 6) % 7) / 7));
+  }
+  function hbars(rows){
+    var max = Math.max.apply(null, rows.map(function(r){ return r.value; }).concat([1e-9]));
+    var g = el("div", {class:"hbars"});
+    rows.forEach(function(r){
+      var bar = el("div", {class:"hbar", title:r.label + " : " + r.text}, el("i"));
+      bar.firstChild.style.width = (r.value / (r.max || max) * 100) + "%";
+      g.append(el("div", {class:"hrow"}, el("div", {class:"htop"}, el("span", {class:"lab", text:r.label}), el("span", {class:"v"}, r.text, r.note ? el("small", {text:" " + r.note}) : null)), bar));
+    });
+    return g;
+  }
+  function chart(title, body){ return el("section", {class:"chart"}, el("h3", {text:title}), body); }
+  function renderStats(){
+    var box = $("stats"); box.textContent = "";
+    if (!entries.length){
+      $("stats-sum").textContent = "Disponibles dès ton premier cours";
+      box.append(el("p", {class:"empty", text:"Tes statistiques apparaîtront ici dès ton premier cours enregistré."})); return;
+    }
+    var total = 0, coachs = {}, discs = {}, rated = 0, ratedSum = 0, ratedN = 0;
+    entries.forEach(function(e){
+      total += e.minutes;
+      var ck = e.coach.trim().toLowerCase();
+      if (!coachs[ck]) coachs[ck] = {name:e.coach.trim(), minutes:0, count:0};
+      coachs[ck].minutes += e.minutes; coachs[ck].count++;
+      var dk = e.discipline || "Non précisée";
+      if (!discs[dk]) discs[dk] = {minutes:0, count:0};
+      discs[dk].minutes += e.minutes; discs[dk].count++;
+      var a = avgOf(e.rating); if (a != null){ rated++; ratedSum += a; }
+    });
+    var nCoachs = Object.keys(coachs).length, nDiscs = Object.keys(discs).length;
+    $("stats-sum").textContent = entries.length + " cours · " + nCoachs + (nCoachs > 1 ? " coachs" : " coach") + " · " + nDiscs + (nDiscs > 1 ? " disciplines" : " discipline");
+
+    box.append(el("dl", {class:"kpis"},
+      el("div", {class:"kpi"}, el("dt", {text:"Cours suivis"}), el("dd", {text:String(entries.length)})),
+      el("div", {class:"kpi"}, el("dt", {text:"Durée moyenne"}), el("dd", {text:fmtH(Math.round(total / entries.length))})),
+      el("div", {class:"kpi"}, el("dt", {text:"Coachs observés"}), el("dd", {text:String(nCoachs)})),
+      el("div", {class:"kpi"}, el("dt", {text:"Note moyenne"}), el("dd", {text: rated ? "★ " + fmtScore(ratedSum / rated) : "–"}))));
+
+    // Heures par mois, d'octobre 2026 à avril 2027
+    var months = [], byMonth = {};
+    for (var d = parseDay(START.slice(0, 7) + "-01"); ymd(d) <= END; d.setMonth(d.getMonth() + 1)) months.push(ymd(d).slice(0, 7));
+    entries.forEach(function(e){ byMonth[e.date.slice(0, 7)] = (byMonth[e.date.slice(0, 7)] || 0) + e.minutes; });
+    var mmax = Math.max.apply(null, months.map(function(m){ return byMonth[m] || 0; }).concat([60]));
+    var cols = el("div", {class:"vbars"}), labs = el("div", {class:"vlabels", "aria-hidden":"true"});
+    months.forEach(function(m){
+      var v = byMonth[m] || 0, name = parseDay(m + "-01").toLocaleDateString("fr-FR", {month:"long", year:"numeric"});
+      var bar = el("div", {class:"bar" + (v ? "" : " zero"), title:name + " : " + fmtH(v)});
+      bar.style.height = (v / mmax * 110) + "px";
+      cols.append(el("div", {class:"vcol", role:"img", "aria-label":name + " : " + fmtH(v)}, el("span", {class:"val", text: v ? fmtH(v) : ""}), bar));
+      labs.append(el("span", {text: parseDay(m + "-01").toLocaleDateString("fr-FR", {month:"short"}).replace(".", "")}));
+    });
+    box.append(chart("Heures par mois", el("div", null, cols, labs)));
+
+    // Disciplines
+    var drows = Object.keys(discs).map(function(k){ return {label:k, value:discs[k].minutes, text:fmtH(discs[k].minutes), note:"· " + discs[k].count + " cours"}; })
+      .sort(function(a, b){ return b.value - a.value; });
+    box.append(chart("Heures par discipline", hbars(drows)));
+
+    // Coachs (les 8 premiers, le reste regroupé)
+    var crows = Object.keys(coachs).map(function(k){ var c = coachs[k]; return {label:c.name.charAt(0).toUpperCase() + c.name.slice(1), value:c.minutes, text:fmtH(c.minutes), note:"· " + c.count + " cours"}; })
+      .sort(function(a, b){ return b.value - a.value; });
+    var cchart = chart("Heures par coach", hbars(crows.slice(0, 8)));
+    if (crows.length > 8){
+      var rest = crows.slice(8), restMin = rest.reduce(function(s, r){ return s + r.value; }, 0);
+      cchart.append(el("p", {class:"more", text:"+ " + rest.length + (rest.length > 1 ? " autres coachs" : " autre coach") + " : " + fmtH(restMin) + " au total. Tous sont dans « Mes coachs »."}));
+    }
+    box.append(cchart);
+
+    // Notes par critère, tous coachs confondus
+    var crit = CRITERIA.map(function(c){
+      var v = entries.map(function(e){ return e.rating && e.rating[c.k]; }).filter(function(n){ return typeof n === "number"; });
+      var a = v.length ? v.reduce(function(x, y){ return x + y; }, 0) / v.length : null;
+      return {label:c.label, value:a || 0, max:5, text: a == null ? "–" : fmtScore(a), note: v.length ? "· " + v.length + " notes" : ""};
+    });
+    box.append(chart("Notes moyennes par critère, sur 5", rated ? hbars(crit) : el("p", {class:"hint", text:"Note quelques cours pour voir cette répartition."})));
+  }
+
+  /* Fichiers : partage sur mobile, téléchargement sinon */
+  async function deliver(filename, data, type, statusId){
+    var blob = new Blob([data], {type:type});
+    try {
+      var file = new File([blob], filename, {type:type});
+      if (navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:filename});
+        return true;
+      }
+    } catch (e){
+      if (e && e.name === "AbortError") return false;
+    }
+    try {
+      var url = URL.createObjectURL(blob);
+      var a = el("a", {href:url, download:filename});
+      document.body.append(a); a.click(); a.remove();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+      return true;
+    } catch (e){
+      setStatus("err", "Le fichier n'a pas pu être créé.", statusId);
+      return false;
+    }
+  }
+
+  /* Export tableur */
+  function csvCell(x){ x = String(x == null ? "" : x); return /[";\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }
+  function exportCsv(){
+    var rows = [["Date","Mois","Semaine","Début","Fin","Heures","Coach","Discipline","Structure","Note moyenne"].concat(CRITERIA.map(function(c){ return c.label; }), ["Ressenti"])];
+    entries.slice().sort(function(a, b){ return (a.date + a.start) < (b.date + b.start) ? -1 : 1; }).forEach(function(e){
+      var a = avgOf(e.rating);
+      rows.push([e.date, e.date.slice(0, 7), isoWeek(e.date), e.start, e.end, (e.minutes/60).toFixed(2).replace(".", ","), e.coach, e.discipline || "", e.structure, a == null ? "" : fmtScore(a)]
+        .concat(CRITERIA.map(function(c){ return e.rating && e.rating[c.k] ? e.rating[c.k] : ""; }), [e.comment || ""]));
+    });
+    deliver("heures-de-stage.csv", "﻿" + rows.map(function(r){ return r.map(csvCell).join(";"); }).join("\r\n"), "text/csv");
+  }
+
+  /* Sauvegarde et restauration */
+  function renderBackup(){
+    var lb = $("lastbackup"), r = $("remind");
+    lb.textContent = lastBackup
+      ? "Dernière sauvegarde : " + new Date(lastBackup).toLocaleDateString("fr-FR", {day:"numeric", month:"long", year:"numeric"})
+      : "Aucune sauvegarde pour l'instant";
+    var age = lastBackup ? (Date.now() - new Date(lastBackup).getTime()) / 864e5 : Infinity;
+    if (entries.length && age > REMIND_DAYS){
+      r.textContent = lastBackup
+        ? "Ta dernière sauvegarde date de plus de " + REMIND_DAYS + " jours. Pense à en refaire une (en bas de la page)."
+        : "Tu n'as encore jamais sauvegardé tes cours. Pense à faire une sauvegarde (en bas de la page).";
+      r.hidden = false;
+    } else r.hidden = true;
+  }
+  async function backupSave(){
+    if (!entries.length){ setStatus("warn", "Il n'y a encore aucun cours à sauvegarder.", "bstatus"); return; }
+    var data = JSON.stringify({app:"suivi-stage", version:1, savedAt:new Date().toISOString(), entries:entries, structs:structs}, null, 2);
+    var ok = await deliver("sauvegarde-heures-stage-" + ymd(new Date()) + ".json", data, "application/json", "bstatus");
+    if (!ok) return;
+    lastBackup = new Date().toISOString(); save(); renderBackup();
+    setStatus("ok", "Sauvegarde créée avec " + entries.length + " cours. Garde ce fichier en lieu sûr.", "bstatus");
+  }
+  function backupLoad(file){
+    var reader = new FileReader();
+    reader.onload = function(){
+      var d;
+      try { d = JSON.parse(reader.result); } catch (e){ d = null; }
+      if (!d || d.app !== "suivi-stage" || !Array.isArray(d.entries)){
+        setStatus("err", "Ce fichier n'est pas une sauvegarde de cette appli.", "bstatus"); return;
+      }
+      var have = {}, added = 0;
+      entries.forEach(function(e){ have[e.id] = true; });
+      var prevE = entries, prevS = structs;
+      d.entries.filter(isEntry).forEach(function(e){
+        if (!e.id) e.id = newId();
+        if (!have[e.id]){ entries.push(e); have[e.id] = true; added++; }
+      });
+      if (Array.isArray(d.structs)) structs = uniq(structs.concat(d.structs));
+      if (!save()){ entries = prevE; structs = prevS; setStatus("err", "La sauvegarde n'a pas pu être restaurée sur cet appareil.", "bstatus"); return; }
+      renderAll();
+      setStatus("ok", added ? added + " cours restaurés. Les cours déjà présents ont été gardés." : "Tous les cours de cette sauvegarde étaient déjà présents.", "bstatus");
+    };
+    reader.onerror = function(){ setStatus("err", "Le fichier n'a pas pu être lu.", "bstatus"); };
+    reader.readAsText(file);
+  }
+
+  /* Démarrage */
+  function renderAll(){ renderSummary(); renderOptions(); renderLog(); renderCoachs(); renderStats(); renderBackup(); }
+  $("f-date").value = ymd(new Date());
+  renderCriteria();
+  ["f-start","f-end"].forEach(function(id){ $(id).addEventListener("input", updatePreview); });
+  $("form").addEventListener("input", function(){ if (armedSubmit){ armedSubmit = null; $("submit").textContent = "Ajouter ce cours"; setStatus("", ""); } });
+  $("form").addEventListener("submit", onSubmit);
+  $("newstruct-open").addEventListener("click", function(){ $("newstruct").hidden = false; $("newstruct-open").hidden = true; $("f-newstruct").focus(); });
+  $("newstruct-save").addEventListener("click", addStructure);
+  $("f-newstruct").addEventListener("keydown", function(ev){ if (ev.key === "Enter"){ ev.preventDefault(); addStructure(); } });
+  $("export").addEventListener("click", exportCsv);
+  $("coach-search").addEventListener("input", renderCoachs);
+  $("backup-save").addEventListener("click", backupSave);
+  $("backup-load").addEventListener("click", function(){ $("backup-file").click(); });
+  $("backup-file").addEventListener("change", function(){ var f = this.files && this.files[0]; if (f) backupLoad(f); this.value = ""; });
+
+  load();
+  if (storageOk){ try { localStorage.setItem(KEY + ":test", "1"); localStorage.removeItem(KEY + ":test"); } catch (e){ storageOk = false; } }
+  $("notice").hidden = storageOk;
+  loaded = true;
+  renderAll();
+
+  // Synchronise si l'appli est ouverte dans deux onglets.
+  window.addEventListener("storage", function(ev){ if (ev.key === KEY){ load(); renderAll(); } });
+  // Demande au navigateur de ne pas effacer les données locales en cas de manque de place.
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script>
+</body>
+</html>
