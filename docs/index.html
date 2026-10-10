@@ -370,6 +370,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     {k:"temps", label:"Gestion du temps", hint:"Commence et finit à l'heure, respecte le déroulé annoncé."},
     {k:"partage", label:"Partage avec toi", hint:"Répond à tes questions et t'explique ses choix de séance."}
   ];
+  var endTouched = false;
   var rating = {}, openCoachs = {}, openCourses = {}, editId = null, editWhere = null, editDraft = null;
   var entries = [], structs = DEFAULT_STRUCTS.slice(), lastBackup = null, loaded = false, filter = "all", armedDelete = null, armedSubmit = null;
   var storageOk = true, openMonths = {}, openDays = {}, monthsInit = false;
@@ -602,7 +603,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     armedSubmit = null; $("submit").textContent = "Ajouter ce cours";
     openMonths[v.date.slice(0, 7)] = true; openDays[v.date] = true;
     setStatus("ok", "Ajouté : " + dayLabel(v.date) + ", " + hm(v.start) + " à " + hm(v.end) + " avec " + v.coach + " (" + fmtH(minutes) + ").");
-    $("f-start").value = v.end; $("f-end").value = ""; $("f-coach").value = ""; $("f-disc").value = "";
+    $("f-start").value = v.end; $("f-end").value = ""; endTouched = false; autoEnd(); $("f-coach").value = ""; $("f-disc").value = "";
     $("f-comment").value = ""; rating = {}; renderCriteria(); $("rate-box").open = false;
     updatePreview(); renderAll(); $("f-end").focus();
   }
@@ -951,6 +952,20 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   $("f-date").value = ymd(new Date());
   renderCriteria();
   ["f-start","f-end"].forEach(function(id){ $(id).addEventListener("input", updatePreview); });
+  // Fin proposée automatiquement une heure après le début, tant que la fin n'a pas été choisie à la main
+  function autoEnd(){
+    var st = $("f-start").value, en = $("f-end").value;
+    if (!st) return;
+    if (!endTouched || !en || toMin(en) <= toMin(st)){
+      var m = Math.min(toMin(st) + 60, 23 * 60 + 59);
+      $("f-end").value = pad(Math.floor(m / 60)) + ":" + pad(m % 60);
+      updatePreview();
+    }
+  }
+  ["input","change"].forEach(function(t){
+    $("f-start").addEventListener(t, autoEnd);
+    $("f-end").addEventListener(t, function(ev){ if (ev.isTrusted) endTouched = !!$("f-end").value; });
+  });
   $("form").addEventListener("input", function(){ if (armedSubmit){ armedSubmit = null; $("submit").textContent = "Ajouter ce cours"; setStatus("", ""); } });
   $("form").addEventListener("submit", onSubmit);
   $("newstruct-open").addEventListener("click", function(){ $("newstruct").hidden = false; $("newstruct-open").hidden = true; $("f-newstruct").focus(); });
