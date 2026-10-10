@@ -370,7 +370,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     {k:"temps", label:"Gestion du temps", hint:"Commence et finit à l'heure, respecte le déroulé annoncé."},
     {k:"partage", label:"Partage avec toi", hint:"Répond à tes questions et t'explique ses choix de séance."}
   ];
-  var endTouched = false;
+  var endTouched = false, startTouched = false;
   var rating = {}, openCoachs = {}, openCourses = {}, editId = null, editWhere = null, editDraft = null;
   var entries = [], structs = DEFAULT_STRUCTS.slice(), lastBackup = null, loaded = false, filter = "all", armedDelete = null, armedSubmit = null;
   var storageOk = true, openMonths = {}, openDays = {}, monthsInit = false;
@@ -603,7 +603,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     armedSubmit = null; $("submit").textContent = "Ajouter ce cours";
     openMonths[v.date.slice(0, 7)] = true; openDays[v.date] = true;
     setStatus("ok", "Ajouté : " + dayLabel(v.date) + ", " + hm(v.start) + " à " + hm(v.end) + " avec " + v.coach + " (" + fmtH(minutes) + ").");
-    $("f-start").value = v.end; $("f-end").value = ""; endTouched = false; autoEnd(); $("f-coach").value = ""; $("f-disc").value = "";
+    $("f-start").value = v.end; startTouched = true; $("f-end").value = ""; endTouched = false; autoEnd(); $("f-coach").value = ""; $("f-disc").value = "";
     $("f-comment").value = ""; rating = {}; renderCriteria(); $("rate-box").open = false;
     updatePreview(); renderAll(); $("f-end").focus();
   }
@@ -962,9 +962,19 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       updatePreview();
     }
   }
+  // Début proposé à l'heure actuelle tant que tu ne l'as pas choisi toi-même
+  function nowDefaults(){
+    if (startTouched) return;
+    var d = new Date();
+    $("f-date").value = ymd(d);
+    $("f-start").value = pad(d.getHours()) + ":" + pad(d.getMinutes());
+    endTouched = false; autoEnd();
+  }
+  $("add-box").addEventListener("toggle", function(){ if ($("add-box").open) nowDefaults(); });
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) nowDefaults(); });
   ["input","change"].forEach(function(t){
-    $("f-start").addEventListener(t, autoEnd);
-    $("f-end").addEventListener(t, function(ev){ if (ev.isTrusted) endTouched = !!$("f-end").value; });
+    $("f-start").addEventListener(t, function(){ startTouched = true; autoEnd(); });
+    $("f-end").addEventListener(t, function(){ endTouched = !!$("f-end").value; });
   });
   $("form").addEventListener("input", function(){ if (armedSubmit){ armedSubmit = null; $("submit").textContent = "Ajouter ce cours"; setStatus("", ""); } });
   $("form").addEventListener("submit", onSubmit);
@@ -972,6 +982,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   $("newstruct-save").addEventListener("click", addStructure);
   $("f-newstruct").addEventListener("keydown", function(ev){ if (ev.key === "Enter"){ ev.preventDefault(); addStructure(); } });
   $("export").addEventListener("click", exportCsv);
+  nowDefaults();
   $("coach-search").addEventListener("input", renderCoachs);
   $("backup-save").addEventListener("click", backupSave);
   $("backup-load").addEventListener("click", function(){ $("backup-file").click(); });
