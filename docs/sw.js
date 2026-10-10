@@ -1,6 +1,6 @@
 /* Service worker : met l'appli en cache pour qu'elle s'ouvre sans réseau.
    Changer VERSION à chaque modification d'un fichier de l'appli. */
-var VERSION = "stage-v9";
+var VERSION = "stage-v10";
 var SHELL = [
   "./",
   "./index.html",

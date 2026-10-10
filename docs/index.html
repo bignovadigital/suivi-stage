@@ -93,6 +93,10 @@ h2{font-size:18px;margin:0;font-weight:600}
 /* Formulaire */
 form{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+/* Jour seul sur la première ligne sur téléphone, Début et Fin côte à côte ; les trois sur une ligne au-delà */
+.when-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.when-grid .f-day{grid-column:1 / -1}
+@media (min-width:560px){.when-grid{grid-template-columns:2fr 1fr 1fr}.when-grid .f-day{grid-column:auto}}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
 label,.lbl{font-size:13px;font-weight:600;color:var(--muted)}
 input,select,button{font:inherit}
@@ -279,8 +283,8 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   <details class="card fold" id="add-box">
     <summary><span class="ftext"><h2 id="t-add">Ajouter un cours</h2><span class="fsub">Jour, horaires, coach, ressenti et note</span></span><span class="chev" aria-hidden="true"></span></summary>
     <form id="form" novalidate>
-      <div class="grid">
-        <div class="field"><label for="f-date">Jour</label><input id="f-date" type="date" required></div>
+      <div class="when-grid">
+        <div class="field f-day"><label for="f-date">Jour</label><input id="f-date" type="date" required></div>
         <div class="field"><label for="f-start">Début</label><input id="f-start" type="time" required></div>
         <div class="field"><label for="f-end">Fin</label><input id="f-end" type="time" required></div>
       </div>
