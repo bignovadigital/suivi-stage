@@ -137,6 +137,11 @@ input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid 
 .score{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-variant-numeric:tabular-nums;color:var(--accent);white-space:nowrap}
 .score.none{color:var(--muted);font-weight:500;font-size:13px}
 .score.todo{color:var(--accent);border:1px solid var(--accent);border-radius:999px;padding:2px 10px;font-size:13px}
+.score.planned{color:var(--muted);border:1px dashed var(--muted);border-radius:999px;padding:2px 10px;font-size:13px;font-weight:600}
+.day.planned .dname,.cdet.planned .time,.cdet.planned .cwho strong{color:var(--muted)}
+.planned-note{margin:8px 0 0;font-size:13px;color:var(--muted)}
+.edit-status{margin:0;font-size:14px;color:var(--danger)}
+.edit-status:empty{display:none}
 .crits{display:flex;flex-direction:column;gap:16px}
 .editor{display:flex;flex-direction:column;gap:12px;padding:14px;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:4px 0 12px;width:100%}
 .edit-actions{display:flex;gap:8px;flex-wrap:wrap}
@@ -184,7 +189,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
 .crow .time{min-width:0;font-size:14px;white-space:nowrap}
 .cwho{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:14px;color:var(--muted)}
 .cwho strong{color:var(--ink);font-weight:600}
-.crow .score.todo{font-size:12px;padding:1px 8px}
+.crow .score.todo,.crow .score.planned,.dhead .score.todo,.dhead .score.planned{font-size:12px;padding:1px 8px}
 .cinner{padding:0 0 14px;display:flex;flex-direction:column;gap:8px}
 .cinner .comment{margin:0}
 .cmeta{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
@@ -273,6 +278,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       <span class="of num">sur 210 h</span>
       <span class="pct num" id="pct"></span>
     </div>
+    <p class="planned-note num" id="planned" hidden></p>
     <div class="bar" id="bar" role="img" aria-label="Progression sur 210 heures"></div>
     <p class="legend" id="legend"></p>
     <dl class="stats">
@@ -414,6 +420,12 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     return v.length ? v.reduce(function(a, b){ return a + b; }, 0) / v.length : null;
   }
   function scoreEl(avg){ return avg == null ? el("span", {class:"score none", text:"Pas noté"}) : el("span", {class:"score", "aria-label":"Note moyenne " + fmtScore(avg) + " sur 5"}, "★ " + fmtScore(avg)); }
+  // Un cours est « prévu » tant qu'il n'est pas terminé (jour à venir, ou aujourd'hui avant l'heure de fin)
+  function nowHM(){ var d = new Date(); return pad(d.getHours()) + ":" + pad(d.getMinutes()); }
+  function isPlanned(e){ var t = ymd(new Date()); return e.date > t || (e.date === t && e.end > nowHM()); }
+  function doneEntries(){ return entries.filter(function(e){ return !isPlanned(e); }); }
+  function toComplete(e){ return !isPlanned(e) && !e.comment && avgOf(e.rating) == null; }
+  function plannedEl(){ return el("span", {class:"score planned", text:"Prévu"}); }
   function isEntry(o){ return o && typeof o.date === "string" && typeof o.start === "string" && typeof o.end === "string" && typeof o.minutes === "number"; }
 
   /* Enregistrement local */
@@ -438,8 +450,12 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   /* Résumé */
   function renderSummary(){
     var today = ymd(new Date());
-    var total = entries.reduce(function(s, e){ return s + (e.minutes || 0); }, 0);
+    var done = doneEntries();
+    var total = done.reduce(function(s, e){ return s + (e.minutes || 0); }, 0);
+    var plannedMin = entries.reduce(function(s, e){ return s + (isPlanned(e) ? e.minutes : 0); }, 0);
     var remaining = Math.max(0, GOAL - total);
+    $("planned").hidden = !(loaded && plannedMin);
+    $("planned").textContent = "+ " + fmtH(plannedMin) + " prévues, comptées une fois les cours passés";
     $("total").textContent = loaded ? fmtH(total) : "—";
     $("pct").textContent = loaded ? Math.min(100, Math.round(total/GOAL*100)) + " %" : "";
     $("remain").textContent = loaded ? fmtH(remaining) : "—";
@@ -460,7 +476,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
 
     var bar = $("bar"); bar.textContent = "";
     var byStruct = {};
-    entries.forEach(function(e){ byStruct[e.structure] = (byStruct[e.structure] || 0) + (e.minutes || 0); });
+    done.forEach(function(e){ byStruct[e.structure] = (byStruct[e.structure] || 0) + (e.minutes || 0); });
     var names = allStructs().filter(function(n){ return byStruct[n]; });
     var used = 0;
     names.forEach(function(n){
@@ -518,22 +534,53 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     updateRateAvg();
   }
 
-  /* Noter et commenter un cours déjà enregistré */
+  /* Modifier un cours déjà enregistré : jour, horaires, coach, discipline, structure, ressenti et note */
   function startEdit(e, where){
     editId = e.id; editWhere = where;
-    editDraft = {comment: e.comment || "", rating: Object.assign({}, e.rating || {})};
+    editDraft = {date:e.date, start:e.start, end:e.end, coach:e.coach, discipline:e.discipline || "", structure:e.structure,
+      comment: e.comment || "", rating: Object.assign({}, e.rating || {})};
     renderAll();
-    var ta = $("edit-comment"); if (ta) ta.scrollIntoView({block:"center", behavior:"smooth"});
+    var f = $("edit-date"); if (f) f.scrollIntoView({block:"center", behavior:"smooth"});
   }
   function editorFor(e){
     var d = editDraft;
+    function input(id, key, attrs){
+      var i = el("input", Object.assign({id:id, autocomplete:"off"}, attrs || {}));
+      i.value = d[key];
+      i.addEventListener("input", function(){ d[key] = i.value; });
+      return i;
+    }
+    var st = input("edit-start", "start", {type:"time"}), en = input("edit-end", "end", {type:"time"});
+    st.addEventListener("input", function(){
+      if (st.value && (!en.value || toMin(en.value) <= toMin(st.value))){
+        var m = Math.min(toMin(st.value) + 60, 23 * 60 + 59);
+        en.value = d.end = pad(Math.floor(m / 60)) + ":" + pad(m % 60);
+      }
+    });
+    var sel = el("select", {id:"edit-struct"});
+    uniq(allStructs().concat([d.structure])).forEach(function(n){ sel.append(el("option", {value:n, text:n})); });
+    sel.value = d.structure;
+    sel.addEventListener("change", function(){ d.structure = sel.value; });
+    var planned = isPlanned({date:d.date, end:d.end});
     var ta = el("textarea", {id:"edit-comment", rows:"3", placeholder:"Ce que tu as remarqué, ce qui t'a plu, ce que tu retiens pour ta pratique…"});
     ta.value = d.comment;
     ta.addEventListener("input", function(){ d.comment = ta.value; });
     return el("div", {class:"editor"},
-      el("label", {for:"edit-comment", text:"Ressenti pendant l'observation"}), ta,
-      el("p", {class:"hint", text:"Note chaque critère de 1 (pas du tout) à 5 (tout à fait). Touche de nouveau une note pour l'enlever."}),
-      buildScales(d.rating),
+      el("div", {class:"when-grid"},
+        el("div", {class:"field f-day"}, el("label", {for:"edit-date", text:"Jour"}), input("edit-date", "date", {type:"date"})),
+        el("div", {class:"field"}, el("label", {for:"edit-start", text:"Début"}), st),
+        el("div", {class:"field"}, el("label", {for:"edit-end", text:"Fin"}), en)),
+      el("div", {class:"grid"},
+        el("div", {class:"field"}, el("label", {for:"edit-coach", text:"Coach suivi"}), input("edit-coach", "coach", {list:"dl-coach"})),
+        el("div", {class:"field"}, el("label", {for:"edit-disc", text:"Discipline"}), input("edit-disc", "discipline", {list:"dl-disc", placeholder:"CrossFit, Hyrox…"}))),
+      el("div", {class:"field"}, el("label", {for:"edit-struct", text:"Structure de stage"}), sel),
+      planned
+        ? el("p", {class:"hint", text:"Ce cours est prévu : tu pourras ajouter ton ressenti et noter le coach une fois le cours passé."})
+        : el("div", {class:"crits"},
+            el("div", {class:"field"}, el("label", {for:"edit-comment", text:"Ressenti pendant l'observation"}), ta),
+            el("p", {class:"hint", text:"Note chaque critère de 1 (pas du tout) à 5 (tout à fait). Touche de nouveau une note pour l'enlever."}),
+            buildScales(d.rating)),
+      el("p", {class:"edit-status", id:"edit-status", role:"status"}),
       el("div", {class:"edit-actions"},
         el("button", {type:"button", class:"btn primary", text:"Enregistrer", onclick:function(){ saveEdit(e.id); }}),
         el("button", {type:"button", class:"btn", text:"Annuler", onclick:function(){ editId = null; renderAll(); }})));
@@ -541,21 +588,30 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   function saveEdit(id){
     var e = entries.filter(function(x){ return x.id === id; })[0];
     if (!e) return;
-    var prev = {comment:e.comment, rating:e.rating};
-    var c = editDraft.comment.trim();
-    if (c) e.comment = c; else delete e.comment;
-    if (avgOf(editDraft.rating) != null) e.rating = Object.assign({}, editDraft.rating); else delete e.rating;
+    var d = editDraft, msg = $("edit-status");
+    var coach = d.coach.trim();
+    if (!d.date || !d.start || !d.end || !coach || !d.structure){ msg.textContent = "Complète le jour, le début, la fin, le coach et la structure."; return; }
+    var minutes = toMin(d.end) - toMin(d.start);
+    if (minutes <= 0){ msg.textContent = "L'heure de fin doit être après l'heure de début."; return; }
+    var prev = JSON.parse(JSON.stringify(e));
+    e.date = d.date; e.start = d.start; e.end = d.end; e.minutes = minutes; e.coach = coach; e.structure = d.structure;
+    if (d.discipline.trim()) e.discipline = d.discipline.trim(); else delete e.discipline;
+    if (!isPlanned(e)){
+      var c = d.comment.trim();
+      if (c) e.comment = c; else delete e.comment;
+      if (avgOf(d.rating) != null) e.rating = Object.assign({}, d.rating); else delete e.rating;
+    }
     if (!save()){
-      if (prev.comment) e.comment = prev.comment; else delete e.comment;
-      if (prev.rating) e.rating = prev.rating; else delete e.rating;
-      setStatus("err", "La modification n'a pas pu être enregistrée sur cet appareil.");
+      Object.keys(e).forEach(function(k){ delete e[k]; }); Object.assign(e, prev);
+      msg.textContent = "La modification n'a pas pu être enregistrée sur cet appareil.";
       return;
     }
+    openMonths[e.date.slice(0, 7)] = true; openDays[e.date] = true; openCourses[e.id] = true;
     editId = null; renderAll();
   }
   function editBtn(e, where){
-    var done = e.comment || avgOf(e.rating) != null;
-    return el("button", {type:"button", class:"act", text: done ? "Modifier" : "Noter et commenter", onclick:function(){ startEdit(e, where); }});
+    var text = isPlanned(e) ? "Modifier" : (toComplete(e) ? "Noter et commenter" : "Modifier");
+    return el("button", {type:"button", class:"act", text:text, onclick:function(){ startEdit(e, where); }});
   }
   function setStatus(kind, msg, id){ var s = $(id || "status"); s.className = "status" + (kind ? " " + kind : ""); s.textContent = msg || ""; }
   function updatePreview(){
@@ -631,9 +687,9 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     } else filter = "all";
     $("export").hidden = !entries.length;
 
-    var last = sorted(entries)[0];
+    var nDone = doneEntries().length, nPlanned = entries.length - nDone, nTodo = entries.filter(toComplete).length;
     $("log-sum").textContent = entries.length
-      ? entries.length + " cours · dernier le " + parseDay(last.date).toLocaleDateString("fr-FR", {day:"numeric", month:"long"})
+      ? [nDone + (nDone > 1 ? " cours faits" : " cours fait"), nPlanned ? nPlanned + (nPlanned > 1 ? " prévus" : " prévu") : "", nTodo ? nTodo + " à compléter" : ""].filter(Boolean).join(" · ")
       : "Aucun cours enregistré";
     var box = $("log"); box.textContent = "";
     if (!loaded){ box.append(el("p", {class:"empty", text:"Chargement de tes cours…"})); return; }
@@ -646,9 +702,10 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     var months = [], m = null, d = null;
     list.forEach(function(e){
       var mk = e.date.slice(0, 7);
-      if (!m || m.key !== mk){ m = {key:mk, days:[], minutes:0, count:0}; months.push(m); d = null; }
+      if (!m || m.key !== mk){ m = {key:mk, days:[], minutes:0, count:0, planned:0}; months.push(m); d = null; }
       if (!d || d.date !== e.date){ d = {date:e.date, items:[], minutes:0}; m.days.push(d); }
-      d.items.push(e); d.minutes += e.minutes; m.minutes += e.minutes; m.count++;
+      d.items.push(e); d.minutes += e.minutes; m.count++;
+      if (isPlanned(e)) m.planned++; else m.minutes += e.minutes;
     });
     if (!monthsInit){ openMonths[months[0].key] = true; monthsInit = true; }
     var wrap = el("div", {class:"months"});
@@ -658,7 +715,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       mdet.addEventListener("toggle", function(){ openMonths[mo.key] = mdet.open; });
       mdet.append(el("summary", {class:"mhead"},
         el("span", {class:"mname", text: parseDay(mo.key + "-01").toLocaleDateString("fr-FR", {month:"long", year:"numeric"})}),
-        el("span", {class:"mmeta"}, el("strong", {text:fmtH(mo.minutes)}), " · " + mo.count + " cours"),
+        el("span", {class:"mmeta"}, el("strong", {text:fmtH(mo.minutes)}), " · " + mo.count + " cours" + (mo.planned ? " · " + mo.planned + (mo.planned > 1 ? " prévus" : " prévu") : "")),
         el("span", {class:"chev", "aria-hidden":"true"})));
       var days = el("div", {class:"days"});
       mo.days.forEach(function(g){
@@ -666,11 +723,13 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
         var sub = one
           ? hm(f.start) + " – " + hm(f.end) + " · " + f.coach + (f.discipline ? " · " + f.discipline : "")
           : g.items.length + " cours · " + uniq(g.items.map(function(e){ return e.coach; })).join(", ");
-        var ddet = el("details", {class:"day"});
+        var allPlanned = g.items.every(isPlanned), todo = g.items.filter(toComplete).length;
+        var ddet = el("details", {class:"day" + (allPlanned ? " planned" : "")});
         ddet.open = !!openDays[g.date];
         ddet.addEventListener("toggle", function(){ openDays[g.date] = ddet.open; });
         ddet.append(el("summary", {class:"dhead"},
           el("span", {class:"dtext"}, el("div", {class:"dname", text:dayLabel(g.date)}), el("div", {class:"dsub", text:sub})),
+          allPlanned ? plannedEl() : (todo ? el("span", {class:"score todo", text: todo + " à noter"}) : null),
           el("span", {class:"dtot", text:fmtH(g.minutes)}),
           el("span", {class:"chev", "aria-hidden":"true"})));
         var ul = el("ul", {class:"rows"});
@@ -679,17 +738,19 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
           var tag = el("span", {class:"cmeta"}, el("span", {class:"dot"}), e.structure + " · " + fmtH(e.minutes));
           tag.querySelector(".dot").style.setProperty("--tc", colorOf(e.structure));
           var armed = armedDelete === e.id;
-          var det = el("details", {class:"cdet"});
+          var pl = isPlanned(e);
+          var det = el("details", {class:"cdet" + (pl ? " planned" : "")});
           det.open = editing || !!openCourses[e.id];
           det.addEventListener("toggle", function(){ openCourses[e.id] = det.open; });
           det.append(el("summary", {class:"crow"},
             el("span", {class:"ctext"},
               el("span", {class:"time", text: hm(e.start) + " – " + hm(e.end)}),
               el("span", {class:"cwho"}, el("strong", {text:e.coach}), e.discipline ? " · " + e.discipline : "")),
-            a == null ? el("span", {class:"score todo", text:"À noter"}) : scoreEl(a),
+            pl ? plannedEl() : (a == null ? el("span", {class:"score todo", text:"À noter"}) : scoreEl(a)),
             el("span", {class:"chev", "aria-hidden":"true"})));
           det.append(el("div", {class:"cinner"},
-            e.comment ? el("p", {class:"comment"}, el("span", {text:"Ressenti : "}), e.comment) : el("p", {class:"hint", text:"Pas encore de ressenti pour ce cours."}),
+            pl ? el("p", {class:"hint", text:"Cours prévu. Tu pourras le noter une fois passé. Tu peux le modifier ou le supprimer si ton programme change."})
+              : e.comment ? el("p", {class:"comment"}, el("span", {text:"Ressenti : "}), e.comment) : el("p", {class:"hint", text:"Pas encore de ressenti pour ce cours."}),
             tag,
             editing ? editorFor(e) : el("div", {class:"acts"}, editBtn(e, "log"),
               el("button", {type:"button", class:"del" + (armed ? " armed" : ""), text: armed ? "Confirmer la suppression" : "Supprimer",
@@ -724,9 +785,9 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     sorted(entries).forEach(function(e){
       var key = e.coach.trim().toLowerCase();
       var c = map[key];
-      if (!c){ c = map[key] = {key:key, name:e.coach.trim(), count:0, minutes:0, structs:[], sums:{}, ns:{}, all:0, alln:0, items:[]}; list.push(c); }
+      if (!c){ c = map[key] = {key:key, name:e.coach.trim(), count:0, minutes:0, planned:0, structs:[], sums:{}, ns:{}, all:0, alln:0, items:[]}; list.push(c); }
       if (c.name[0] === c.name[0].toLowerCase() && e.coach.trim()[0] !== e.coach.trim()[0].toLowerCase()) c.name = e.coach.trim();
-      c.count++; c.minutes += e.minutes;
+      if (isPlanned(e)) c.planned++; else { c.count++; c.minutes += e.minutes; }
       if (c.structs.indexOf(e.structure) < 0) c.structs.push(e.structure);
       CRITERIA.forEach(function(k){
         var n = e.rating && e.rating[k.k];
@@ -740,7 +801,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       if (a.avg != null && b.avg !== a.avg) return b.avg - a.avg;
       return b.count - a.count;
     });
-    var todo = list.filter(function(c){ return c.avg == null; }).length;
+    var todo = list.filter(function(c){ return c.avg == null && c.count; }).length;
     $("coachs-sum").textContent = list.length + (list.length > 1 ? " coachs" : " coach") + (todo ? " · " + todo + " à noter" : "");
     var search = $("coach-search");
     search.hidden = list.length < 6;
@@ -753,8 +814,8 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       det.open = !!openCoachs[c.key];
       det.addEventListener("toggle", function(){ openCoachs[c.key] = det.open; });
       det.append(el("summary", {class:"chead"},
-        el("span", {class:"dtext"}, el("div", {class:"dname", text:c.name}), el("div", {class:"dsub", text:c.count + " cours · " + fmtH(c.minutes) + " · " + c.structs.join(", ")})),
-        c.avg == null ? el("span", {class:"score todo", text:"À noter"}) : scoreEl(c.avg),
+        el("span", {class:"dtext"}, el("div", {class:"dname", text:c.name}), el("div", {class:"dsub", text:(c.count ? c.count + " cours · " + fmtH(c.minutes) + (c.planned ? " · " + c.planned + (c.planned > 1 ? " prévus" : " prévu") : "") : c.planned + " cours " + (c.planned > 1 ? "prévus" : "prévu")) + " · " + c.structs.join(", ")})),
+        c.avg != null ? scoreEl(c.avg) : (c.count ? el("span", {class:"score todo", text:"À noter"}) : plannedEl()),
         el("span", {class:"chev", "aria-hidden":"true"})));
       var body = el("div", {class:"cbody"});
       if (c.alln){
@@ -772,7 +833,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
         ul.append(el("li", null,
           el("div", {class:"cl"},
             el("span", {class:"when", text:dayLabel(e.date) + " · " + hm(e.start) + " – " + hm(e.end) + (e.discipline ? " · " + e.discipline : "")}),
-            a == null ? null : scoreEl(a)),
+            isPlanned(e) ? plannedEl() : (a == null ? null : scoreEl(a))),
           e.comment ? el("div", {class:"ctext", text:e.comment}) : null,
           editId === e.id && editWhere === "coach" ? editorFor(e) : editBtn(e, "coach")));
       });
@@ -802,9 +863,10 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   function chart(title, body){ return el("section", {class:"chart"}, el("h3", {text:title}), body); }
   function renderStats(){
     var box = $("stats"); box.textContent = "";
+    var entries = doneEntries();
     if (!entries.length){
-      $("stats-sum").textContent = "Disponibles dès ton premier cours";
-      box.append(el("p", {class:"empty", text:"Tes statistiques apparaîtront ici dès ton premier cours enregistré."})); return;
+      $("stats-sum").textContent = "Disponibles dès ton premier cours passé";
+      box.append(el("p", {class:"empty", text:"Tes statistiques apparaîtront ici dès ton premier cours passé."})); return;
     }
     var total = 0, coachs = {}, discs = {}, rated = 0, ratedSum = 0, ratedN = 0;
     entries.forEach(function(e){
@@ -818,7 +880,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       var a = avgOf(e.rating); if (a != null){ rated++; ratedSum += a; }
     });
     var nCoachs = Object.keys(coachs).length, nDiscs = Object.keys(discs).length;
-    $("stats-sum").textContent = entries.length + " cours · " + nCoachs + (nCoachs > 1 ? " coachs" : " coach") + " · " + nDiscs + (nDiscs > 1 ? " disciplines" : " discipline");
+    $("stats-sum").textContent = entries.length + " cours faits · " + nCoachs + (nCoachs > 1 ? " coachs" : " coach") + " · " + nDiscs + (nDiscs > 1 ? " disciplines" : " discipline");
 
     box.append(el("dl", {class:"kpis"},
       el("div", {class:"kpi"}, el("dt", {text:"Cours suivis"}), el("dd", {text:String(entries.length)})),
@@ -892,10 +954,10 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   /* Export tableur */
   function csvCell(x){ x = String(x == null ? "" : x); return /[";\r\n]/.test(x) ? '"' + x.replace(/"/g, '""') + '"' : x; }
   function exportCsv(){
-    var rows = [["Date","Mois","Semaine","Début","Fin","Heures","Coach","Discipline","Structure","Note moyenne"].concat(CRITERIA.map(function(c){ return c.label; }), ["Ressenti"])];
+    var rows = [["Date","Statut","Mois","Semaine","Début","Fin","Heures","Coach","Discipline","Structure","Note moyenne"].concat(CRITERIA.map(function(c){ return c.label; }), ["Ressenti"])];
     entries.slice().sort(function(a, b){ return (a.date + a.start) < (b.date + b.start) ? -1 : 1; }).forEach(function(e){
       var a = avgOf(e.rating);
-      rows.push([e.date, e.date.slice(0, 7), isoWeek(e.date), e.start, e.end, (e.minutes/60).toFixed(2).replace(".", ","), e.coach, e.discipline || "", e.structure, a == null ? "" : fmtScore(a)]
+      rows.push([e.date, isPlanned(e) ? "Prévu" : "Fait", e.date.slice(0, 7), isoWeek(e.date), e.start, e.end, (e.minutes/60).toFixed(2).replace(".", ","), e.coach, e.discipline || "", e.structure, a == null ? "" : fmtScore(a)]
         .concat(CRITERIA.map(function(c){ return e.rating && e.rating[c.k] ? e.rating[c.k] : ""; }), [e.comment || ""]));
     });
     deliver("heures-de-stage.csv", "﻿" + rows.map(function(r){ return r.map(csvCell).join(";"); }).join("\r\n"), "text/csv");
@@ -971,7 +1033,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     endTouched = false; autoEnd();
   }
   $("add-box").addEventListener("toggle", function(){ if ($("add-box").open) nowDefaults(); });
-  document.addEventListener("visibilitychange", function(){ if (!document.hidden) nowDefaults(); });
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden){ nowDefaults(); if (!editId) renderAll(); } });
   ["input","change"].forEach(function(t){
     $("f-start").addEventListener(t, function(){ startTouched = true; autoEnd(); });
     $("f-end").addEventListener(t, function(){ endTouched = !!$("f-end").value; });
