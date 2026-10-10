@@ -1,6 +1,6 @@
 /* Service worker : met l'appli en cache pour qu'elle s'ouvre sans réseau.
    Changer VERSION à chaque modification d'un fichier de l'appli. */
-var VERSION = "stage-v15";
+var VERSION = "stage-v16";
 var SHELL = [
   "./",
   "./index.html",
@@ -15,7 +15,7 @@ var SHELL = [
 var FONTS = "stage-fonts";
 
 self.addEventListener("install", function(ev){
-  ev.waitUntil(caches.open(VERSION).then(function(c){ return c.addAll(SHELL); }).then(function(){ return self.skipWaiting(); }));
+  ev.waitUntil(caches.open(VERSION).then(function(c){ return c.addAll(SHELL.map(function(u){ return new Request(u, {cache:"reload"}); })); }).then(function(){ return self.skipWaiting(); }));
 });
 
 self.addEventListener("activate", function(ev){
@@ -43,7 +43,8 @@ self.addEventListener("fetch", function(ev){
 
   // Page : réseau d'abord pour recevoir les mises à jour, cache si hors ligne.
   if (req.mode === "navigate"){
-    ev.respondWith(fetch(req).then(function(res){
+    // cache "no-cache" : on redemande toujours la page au serveur, sans la copie gardée 10 min par le navigateur
+    ev.respondWith(fetch(req.url, {cache:"no-cache", credentials:"same-origin"}).then(function(res){
       if (res.ok){ var copy = res.clone(); caches.open(VERSION).then(function(c){ c.put("./index.html", copy); }); }
       return res;
     }).catch(function(){ return caches.match("./index.html"); }));

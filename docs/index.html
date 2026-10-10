@@ -998,7 +998,19 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
   window.addEventListener("storage", function(ev){ if (ev.key === KEY){ load(); renderAll(); } });
   // Demande au navigateur de ne pas effacer les données locales en cas de manque de place.
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(function(){});
-  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+  // Mises à jour : on vérifie s'il existe une nouvelle version à chaque retour dans l'appli,
+  // et on recharge la page dès qu'elle est installée (sauf si une saisie est en cours).
+  if ("serviceWorker" in navigator){
+    var hadController = !!navigator.serviceWorker.controller, reloading = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function(){
+      if (!hadController || reloading) return;
+      if ($("f-coach").value.trim() || $("f-comment").value.trim() || editId) return;
+      reloading = true; location.reload();
+    });
+    navigator.serviceWorker.register("sw.js", {updateViaCache:"none"}).then(function(reg){
+      document.addEventListener("visibilitychange", function(){ if (!document.hidden) reg.update().catch(function(){}); });
+    }).catch(function(){});
+  }
 })();
 </script>
 </body>
