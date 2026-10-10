@@ -365,7 +365,9 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
 <script>
 (function(){
   var GOAL = 210*60, START = "2026-10-08", END = "2027-04-08";
-  var DEFAULT_STRUCTS = ["R2 Training Factory"];
+  var DEFAULT_STRUCTS = ["R2 Training Factory – Vendôme", "R2 Training Factory – Bastille"];
+  // Les cours enregistrés avant la distinction des deux salles R2 étaient à Vendôme
+  function normStruct(n){ return n === "R2 Training Factory" ? "R2 Training Factory – Vendôme" : n; }
   var DEFAULT_DISC = ["CrossFit","Hyrox","Haltérophilie","PT (Personal Training)","Calisthenics","Handstand","Hybrid Training","FIT","ATHX","Aerobic Capacity","Powerlifting","Spe Run","Mobility","Hyrox focus Force","Core Training"];
   var KEY = "suivi-stage:v1", REMIND_DAYS = 14;
   var CRITERIA = [
@@ -437,6 +439,10 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
         entries = (Array.isArray(d.entries) ? d.entries : []).filter(isEntry);
         if (Array.isArray(d.structs) && d.structs.length) structs = d.structs;
         lastBackup = d.lastBackup || null;
+        var before = JSON.stringify([entries, structs]);
+        entries.forEach(function(e){ e.structure = normStruct(e.structure); });
+        structs = uniq(structs.map(normStruct).concat(DEFAULT_STRUCTS));
+        if (JSON.stringify([entries, structs]) !== before) save();
       }
     } catch (e){ storageOk = false; }
   }
@@ -609,6 +615,22 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
     openMonths[e.date.slice(0, 7)] = true; openDays[e.date] = true; openCourses[e.id] = true;
     editId = null; renderAll();
   }
+  // Dupliquer : reprend coach, discipline, structure et horaires dans le formulaire, à la date du jour
+  function duplicate(e){
+    editId = null;
+    $("f-date").value = ymd(new Date());
+    $("f-start").value = e.start; $("f-end").value = e.end; startTouched = true; endTouched = true;
+    $("f-coach").value = e.coach; $("f-disc").value = e.discipline || "";
+    if (allStructs().indexOf(e.structure) >= 0) $("f-struct").value = e.structure;
+    $("f-comment").value = ""; rating = {}; renderCriteria(); $("rate-box").open = false;
+    armedSubmit = null; $("submit").textContent = "Ajouter ce cours";
+    updatePreview();
+    setStatus("ok", "Copie du cours " + (/^[aeiouyhàâäéèêëîïôöùûü]/i.test(e.coach) ? "d'" : "de ") + e.coach + (e.discipline ? " (" + e.discipline + ")" : "") + ". Vérifie le jour et les horaires, puis touche « Ajouter ce cours ».");
+    $("add-box").open = true;
+    renderAll();
+    $("add-box").scrollIntoView({block:"start", behavior:"smooth"});
+  }
+  function dupBtn(e){ return el("button", {type:"button", class:"act", text:"Dupliquer", onclick:function(){ duplicate(e); }}); }
   function editBtn(e, where){
     var text = isPlanned(e) ? "Modifier" : (toComplete(e) ? "Noter et commenter" : "Modifier");
     return el("button", {type:"button", class:"act", text:text, onclick:function(){ startEdit(e, where); }});
@@ -752,7 +774,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
             pl ? el("p", {class:"hint", text:"Cours prévu. Tu pourras le noter une fois passé. Tu peux le modifier ou le supprimer si ton programme change."})
               : e.comment ? el("p", {class:"comment"}, el("span", {text:"Ressenti : "}), e.comment) : el("p", {class:"hint", text:"Pas encore de ressenti pour ce cours."}),
             tag,
-            editing ? editorFor(e) : el("div", {class:"acts"}, editBtn(e, "log"),
+            editing ? editorFor(e) : el("div", {class:"acts"}, editBtn(e, "log"), dupBtn(e),
               el("button", {type:"button", class:"del" + (armed ? " armed" : ""), text: armed ? "Confirmer la suppression" : "Supprimer",
                 onclick:function(){ armed ? removeEntry(e.id) : (armedDelete = e.id, renderLog(), setTimeout(function(){ if (armedDelete === e.id){ armedDelete = null; renderLog(); } }, 5000)); }}))));
           ul.append(el("li", {class:"course"}, det));
@@ -835,7 +857,7 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
             el("span", {class:"when", text:dayLabel(e.date) + " · " + hm(e.start) + " – " + hm(e.end) + (e.discipline ? " · " + e.discipline : "")}),
             isPlanned(e) ? plannedEl() : (a == null ? null : scoreEl(a))),
           e.comment ? el("div", {class:"ctext", text:e.comment}) : null,
-          editId === e.id && editWhere === "coach" ? editorFor(e) : editBtn(e, "coach")));
+          editId === e.id && editWhere === "coach" ? editorFor(e) : el("div", {class:"acts"}, editBtn(e, "coach"), dupBtn(e))));
       });
       body.append(el("p", {class:"ctitle", text:"Cours suivis"}), ul);
       det.append(body);
@@ -997,10 +1019,11 @@ details[open] > summary .chev{transform:rotate(-135deg) translate(-2px,-2px)}
       entries.forEach(function(e){ have[e.id] = true; });
       var prevE = entries, prevS = structs;
       d.entries.filter(isEntry).forEach(function(e){
+        e.structure = normStruct(e.structure);
         if (!e.id) e.id = newId();
         if (!have[e.id]){ entries.push(e); have[e.id] = true; added++; }
       });
-      if (Array.isArray(d.structs)) structs = uniq(structs.concat(d.structs));
+      if (Array.isArray(d.structs)) structs = uniq(structs.concat(d.structs.map(normStruct)));
       if (!save()){ entries = prevE; structs = prevS; setStatus("err", "La sauvegarde n'a pas pu être restaurée sur cet appareil.", "bstatus"); return; }
       renderAll();
       setStatus("ok", added ? added + " cours restaurés. Les cours déjà présents ont été gardés." : "Tous les cours de cette sauvegarde étaient déjà présents.", "bstatus");
