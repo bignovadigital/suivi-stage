@@ -14,4 +14,4 @@ Appli web installable (PWA) pour suivre les 210 heures de stage de la formation 
 
 ## Mettre à jour
 
-Après toute modification d'un fichier, incrémenter `VERSION` dans `sw.js` pour que les téléphones reçoivent la nouvelle version.
+L'appli est dans `docs/` (dossier publié par GitHub Pages). Après toute modification d'un fichier, incrémenter `VERSION` dans `docs/sw.js` pour que les téléphones reçoivent la nouvelle version.
