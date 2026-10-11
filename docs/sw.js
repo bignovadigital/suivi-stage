@@ -1,15 +1,15 @@
 /* Service worker : met l'appli en cache pour qu'elle s'ouvre sans réseau.
    Changer VERSION à chaque modification d'un fichier de l'appli. */
-var VERSION = "stage-v19";
+var VERSION = "stage-v20";
 var SHELL = [
   "./",
   "./index.html",
-  "./manifest.webmanifest?v=3",
-  "./icons/icon-192.png?v=3",
-  "./icons/icon-512.png?v=3",
-  "./icons/icon-maskable-512.png?v=3",
-  "./icons/apple-touch-icon.png?v=3",
-  "./icons/favicon-32.png?v=3",
+  "./manifest.webmanifest?v=4",
+  "./icons/icon-192.png?v=4",
+  "./icons/icon-512.png?v=4",
+  "./icons/icon-maskable-512.png?v=4",
+  "./icons/apple-touch-icon.png?v=4",
+  "./icons/favicon-32.png?v=4",
   "./assets/fond.jpg"
 ];
 var FONTS = "stage-fonts";
